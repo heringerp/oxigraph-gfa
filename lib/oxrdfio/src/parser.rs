@@ -21,6 +21,7 @@ use oxttl::trig::{FromReadTriGReader, TriGParser, TriGPrefixesIter};
 #[cfg(feature = "async-tokio")]
 use oxttl::turtle::FromTokioAsyncReadTurtleReader;
 use oxttl::turtle::{FromReadTurtleReader, TurtleParser, TurtlePrefixesIter};
+use oxttl::gfa::{FromReadGFAReader, GFAParser, GFAPrefixesIter};
 use std::collections::HashMap;
 use std::io::Read;
 #[cfg(feature = "async-tokio")]
@@ -71,6 +72,7 @@ enum RdfParserKind {
     RdfXml(RdfXmlParser),
     TriG(TriGParser),
     Turtle(TurtleParser),
+    GFA(GFAParser),
 }
 
 impl RdfParser {
@@ -121,6 +123,16 @@ impl RdfParser {
                         TurtleParser::new()
                     }
                 }),
+                RdfFormat::GFA => RdfParserKind::GFA({
+                    #[cfg(feature = "rdf-star")]
+                    {
+                        GFAParser::new().with_quoted_triples()
+                    }
+                    #[cfg(not(feature = "rdf-star"))]
+                    {
+                        GFAParser::new()
+                    }
+                }),
             },
             default_graph: GraphName::DefaultGraph,
             without_named_graphs: false,
@@ -146,6 +158,7 @@ impl RdfParser {
             RdfParserKind::RdfXml(_) => RdfFormat::RdfXml,
             RdfParserKind::TriG(_) => RdfFormat::TriG,
             RdfParserKind::Turtle(_) => RdfFormat::Turtle,
+            RdfParserKind::GFA(_) => RdfFormat::GFA,
         }
     }
 
@@ -174,6 +187,7 @@ impl RdfParser {
             RdfParserKind::RdfXml(p) => RdfParserKind::RdfXml(p.with_base_iri(base_iri)?),
             RdfParserKind::TriG(p) => RdfParserKind::TriG(p.with_base_iri(base_iri)?),
             RdfParserKind::Turtle(p) => RdfParserKind::Turtle(p.with_base_iri(base_iri)?),
+            RdfParserKind::GFA(p) => RdfParserKind::GFA(p.with_base_iri(base_iri)?),
         };
         Ok(self)
     }
@@ -260,6 +274,7 @@ impl RdfParser {
             RdfParserKind::RdfXml(p) => RdfParserKind::RdfXml(p.unchecked()),
             RdfParserKind::TriG(p) => RdfParserKind::TriG(p.unchecked()),
             RdfParserKind::Turtle(p) => RdfParserKind::Turtle(p.unchecked()),
+            RdfParserKind::GFA(p) => RdfParserKind::GFA(p.unchecked()),
         };
         self
     }
@@ -293,6 +308,7 @@ impl RdfParser {
                 RdfParserKind::RdfXml(p) => FromReadQuadReaderKind::RdfXml(p.parse_read(reader)),
                 RdfParserKind::TriG(p) => FromReadQuadReaderKind::TriG(p.parse_read(reader)),
                 RdfParserKind::Turtle(p) => FromReadQuadReaderKind::Turtle(p.parse_read(reader)),
+                RdfParserKind::GFA(p) => FromReadQuadReaderKind::GFA(p.parse_read(reader)),
             },
             mapper: QuadMapper {
                 default_graph: self.default_graph.clone(),
@@ -393,6 +409,7 @@ enum FromReadQuadReaderKind<R: Read> {
     RdfXml(FromReadRdfXmlReader<R>),
     TriG(FromReadTriGReader<R>),
     Turtle(FromReadTurtleReader<R>),
+    GFA(FromReadGFAReader),
 }
 
 impl<R: Read> Iterator for FromReadQuadReader<R> {
@@ -424,6 +441,10 @@ impl<R: Read> Iterator for FromReadQuadReader<R> {
                 Ok(triple) => Ok(self.mapper.map_triple_to_quad(triple)),
                 Err(e) => Err(e.into()),
             },
+            FromReadQuadReaderKind::GFA(parser) => match parser.next()? {
+                Ok(triple) => Ok(self.mapper.map_triple_to_quad(triple)),
+                Err(e) => Err(e.into()),
+            }
         })
     }
 }
@@ -461,6 +482,7 @@ impl<R: Read> FromReadQuadReader<R> {
                 FromReadQuadReaderKind::N3(p) => PrefixesIterKind::N3(p.prefixes()),
                 FromReadQuadReaderKind::TriG(p) => PrefixesIterKind::TriG(p.prefixes()),
                 FromReadQuadReaderKind::Turtle(p) => PrefixesIterKind::Turtle(p.prefixes()),
+                FromReadQuadReaderKind::GFA(p) => PrefixesIterKind::GFA(p.prefixes()),
                 FromReadQuadReaderKind::NQuads(_)
                 | FromReadQuadReaderKind::NTriples(_)
                 | FromReadQuadReaderKind::RdfXml(_) => PrefixesIterKind::None, /* TODO: implement for RDF/XML */
@@ -492,6 +514,7 @@ impl<R: Read> FromReadQuadReader<R> {
             FromReadQuadReaderKind::N3(p) => p.base_iri(),
             FromReadQuadReaderKind::TriG(p) => p.base_iri(),
             FromReadQuadReaderKind::Turtle(p) => p.base_iri(),
+            FromReadQuadReaderKind::GFA(p) => p.base_iri(),
             FromReadQuadReaderKind::NQuads(_)
             | FromReadQuadReaderKind::NTriples(_)
             | FromReadQuadReaderKind::RdfXml(_) => None, // TODO: implement for RDF/XML
@@ -656,6 +679,7 @@ enum PrefixesIterKind<'a> {
     Turtle(TurtlePrefixesIter<'a>),
     TriG(TriGPrefixesIter<'a>),
     N3(N3PrefixesIter<'a>),
+    GFA(GFAPrefixesIter<'a>),
     None,
 }
 
@@ -668,6 +692,7 @@ impl<'a> Iterator for PrefixesIter<'a> {
             PrefixesIterKind::Turtle(iter) => iter.next(),
             PrefixesIterKind::TriG(iter) => iter.next(),
             PrefixesIterKind::N3(iter) => iter.next(),
+            PrefixesIterKind::GFA(iter) => iter.next(),
             PrefixesIterKind::None => None,
         }
     }
@@ -678,6 +703,7 @@ impl<'a> Iterator for PrefixesIter<'a> {
             PrefixesIterKind::Turtle(iter) => iter.size_hint(),
             PrefixesIterKind::TriG(iter) => iter.size_hint(),
             PrefixesIterKind::N3(iter) => iter.size_hint(),
+            PrefixesIterKind::GFA(iter) => iter.size_hint(),
             PrefixesIterKind::None => (0, Some(0)),
         }
     }

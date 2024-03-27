@@ -7,7 +7,7 @@ use oxrdfxml::ToTokioAsyncWriteRdfXmlWriter;
 use oxrdfxml::{RdfXmlSerializer, ToWriteRdfXmlWriter};
 #[cfg(feature = "async-tokio")]
 use oxttl::nquads::ToTokioAsyncWriteNQuadsWriter;
-use oxttl::nquads::{NQuadsSerializer, ToWriteNQuadsWriter};
+use oxttl::{nquads::{NQuadsSerializer, ToWriteNQuadsWriter}, GFASerializer, gfa::ToWriteGFAWriter};
 #[cfg(feature = "async-tokio")]
 use oxttl::ntriples::ToTokioAsyncWriteNTriplesWriter;
 use oxttl::ntriples::{NTriplesSerializer, ToWriteNTriplesWriter};
@@ -56,6 +56,7 @@ enum RdfSerializerKind {
     RdfXml(RdfXmlSerializer),
     TriG(TriGSerializer),
     Turtle(TurtleSerializer),
+    GFA(GFASerializer),
 }
 
 impl RdfSerializer {
@@ -68,6 +69,7 @@ impl RdfSerializer {
                 RdfFormat::NTriples => RdfSerializerKind::NTriples(NTriplesSerializer::new()),
                 RdfFormat::RdfXml => RdfSerializerKind::RdfXml(RdfXmlSerializer::new()),
                 RdfFormat::TriG => RdfSerializerKind::TriG(TriGSerializer::new()),
+                RdfFormat::GFA => RdfSerializerKind::GFA(GFASerializer::new()),
                 RdfFormat::Turtle | RdfFormat::N3 => {
                     RdfSerializerKind::Turtle(TurtleSerializer::new())
                 }
@@ -92,6 +94,7 @@ impl RdfSerializer {
             RdfSerializerKind::RdfXml(_) => RdfFormat::RdfXml,
             RdfSerializerKind::TriG(_) => RdfFormat::TriG,
             RdfSerializerKind::Turtle(_) => RdfFormat::Turtle,
+            RdfSerializerKind::GFA(_) => RdfFormat::GFA,
         }
     }
 
@@ -133,6 +136,9 @@ impl RdfSerializer {
             }
             RdfSerializerKind::Turtle(s) => {
                 RdfSerializerKind::Turtle(s.with_prefix(prefix_name, prefix_iri)?)
+            }
+            RdfSerializerKind::GFA(s) => {
+                RdfSerializerKind::GFA(s.with_prefix(prefix_name, prefix_iri)?)
             }
         };
         Ok(self)
@@ -179,6 +185,9 @@ impl RdfSerializer {
                 }
                 RdfSerializerKind::Turtle(s) => {
                     ToWriteQuadWriterKind::Turtle(s.serialize_to_write(write))
+                }
+                RdfSerializerKind::GFA(s) => {
+                    ToWriteQuadWriterKind::GFA(s.serialize_to_write(write))
                 }
             },
         }
@@ -281,6 +290,7 @@ enum ToWriteQuadWriterKind<W: Write> {
     RdfXml(ToWriteRdfXmlWriter<W>),
     TriG(ToWriteTriGWriter<W>),
     Turtle(ToWriteTurtleWriter<W>),
+    GFA(ToWriteGFAWriter<W>),
 }
 
 impl<W: Write> ToWriteQuadWriter<W> {
@@ -292,6 +302,7 @@ impl<W: Write> ToWriteQuadWriter<W> {
             ToWriteQuadWriterKind::RdfXml(writer) => writer.write_triple(to_triple(quad)?),
             ToWriteQuadWriterKind::TriG(writer) => writer.write_quad(quad),
             ToWriteQuadWriterKind::Turtle(writer) => writer.write_triple(to_triple(quad)?),
+            ToWriteQuadWriterKind::GFA(writer) => writer.write_triple(to_triple(quad)?),
         }
     }
 
@@ -310,6 +321,7 @@ impl<W: Write> ToWriteQuadWriter<W> {
             ToWriteQuadWriterKind::RdfXml(writer) => writer.finish()?,
             ToWriteQuadWriterKind::TriG(writer) => writer.finish()?,
             ToWriteQuadWriterKind::Turtle(writer) => writer.finish()?,
+            ToWriteQuadWriterKind::GFA(writer) => writer.finish()?,
         })
     }
 }

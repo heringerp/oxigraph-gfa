@@ -24,6 +24,8 @@ oxrdf = { version = "0.2.0-alpha.2", path = "../oxrdf" }
 oxiri = "0.2.3-alpha.1"
 oxilangtag = "0.1"
 tokio = { version = "1.29", optional = true, features = ["io-util"] }
+gfa = "0.10.1"
+handlegraph = { git = "https://github.com/chfi/rs-handlegraph", branch = "master" }
 
 [dev-dependencies]
 tokio = { version = "1.29", features = ["rt", "macros"] }

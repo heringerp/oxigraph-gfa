@@ -18,6 +18,7 @@ pub enum RdfFormat {
     TriG,
     /// [Turtle](https://www.w3.org/TR/turtle/)
     Turtle,
+    GFA,
 }
 
 impl RdfFormat {
@@ -40,6 +41,7 @@ impl RdfFormat {
             Self::RdfXml => "http://www.w3.org/ns/formats/RDF_XML",
             Self::TriG => "http://www.w3.org/ns/formats/TriG",
             Self::Turtle => "http://www.w3.org/ns/formats/Turtle",
+            Self::GFA => "http://having.some.trouble.here/GFA",
         }
     }
 
@@ -59,6 +61,7 @@ impl RdfFormat {
             Self::RdfXml => "application/rdf+xml",
             Self::TriG => "application/trig",
             Self::Turtle => "text/turtle",
+            Self::GFA => "text/gfa",
         }
     }
 
@@ -78,6 +81,7 @@ impl RdfFormat {
             Self::RdfXml => "rdf",
             Self::TriG => "trig",
             Self::Turtle => "ttl",
+            Self::GFA => "gfa",
         }
     }
 
@@ -97,6 +101,7 @@ impl RdfFormat {
             Self::RdfXml => "RDF/XML",
             Self::TriG => "TriG",
             Self::Turtle => "Turtle",
+            Self::GFA => "GFA",
         }
     }
 
@@ -190,7 +195,7 @@ impl RdfFormat {
     /// ```
     #[inline]
     pub fn from_extension(extension: &str) -> Option<Self> {
-        const MEDIA_TYPES: [(&str, RdfFormat); 8] = [
+        const MEDIA_TYPES: [(&str, RdfFormat); 9] = [
             ("n3", RdfFormat::N3),
             ("nq", RdfFormat::NQuads),
             ("nt", RdfFormat::NTriples),
@@ -199,6 +204,7 @@ impl RdfFormat {
             ("ttl", RdfFormat::Turtle),
             ("txt", RdfFormat::NTriples),
             ("xml", RdfFormat::RdfXml),
+            ("gfa", RdfFormat::GFA),
         ];
         for (candidate_extension, candidate_id) in MEDIA_TYPES {
             if candidate_extension.eq_ignore_ascii_case(extension) {
